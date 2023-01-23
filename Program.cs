@@ -1,11 +1,32 @@
 ﻿using System.Diagnostics;
+using System.IO.Compression;
 
 public class Program {
+  private const string dataFile = "AllCountries.txt";
+  private const string dataZip = "AllCountries.zip";
+
   public static void Main() {
+    EnsureFile();
     for (int i = 0; i < 2; i++) {
       RunTest(parallel: true);
       RunTest(parallel: false);
     }
+  }
+
+  private static void EnsureFile() {
+    if (!File.Exists(dataFile)) {
+      Console.WriteLine("Downloading");
+      var hc = new HttpClient();
+      using (var file = File.Create(dataZip)) {
+        using var stream = hc.GetStreamAsync("http://download.geonames.org/export/dump/allCountries.zip").Result;
+        stream.CopyTo(file);
+      }
+      Console.WriteLine("Extracting");
+      ZipFile.ExtractToDirectory(dataZip, Environment.CurrentDirectory);
+      Console.WriteLine("Extracted");
+      File.Delete(dataZip);
+    }
+
   }
 
   private static void RunTest(bool parallel = false) {
@@ -13,9 +34,9 @@ public class Program {
     const int nameColumn = 1;
     const int countryColumn = 8;
     const int elevationColumn = 15;
-    var lines = File.ReadLines(Path.Combine(Environment.CurrentDirectory, "AllCountries.txt"));
+    var lines = File.ReadLines(Path.Combine(Environment.CurrentDirectory, dataFile));
     IEnumerable<(string, int, string)> q;
-    if (parallel) { 
+    if (parallel) {
       q = lines.AsParallel()
             .Select(line => line.Split(new char[] { '\t' }))
             .Select(fields => (fields: fields, elevation: int.TryParse(fields[elevationColumn], out var elevation) ? elevation : 0))
@@ -45,7 +66,7 @@ public class Program {
 
     }
     start.Stop();
-    Console.WriteLine($"{(parallel ? "Parallel  " : "Sequential")}: {1E3 * start.ElapsedTicks / Stopwatch.Frequency :0.000}ms elapsed");
+    Console.WriteLine($"{(parallel ? "Parallel  " : "Sequential")}: {1E3 * start.ElapsedTicks / Stopwatch.Frequency:0.000}ms elapsed");
   }
 }
 
