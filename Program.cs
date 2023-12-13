@@ -25,6 +25,9 @@ public class Program {
 
       //signal if all tasks are done
       if (Interlocked.Decrement(ref count) == 0) signal.Set();
+
+      signal.WaitOne();
+      print("Done.");
       
       void print(String s) => Console.WriteLine($"Task {i:d3} [{Stopwatch.GetElapsedTime(start) :ss\\.ff}] : {s}" );
     }
